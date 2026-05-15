@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Simulador de semáforo interativo com transições automáticas e interface visual em tempo real." />
+  <title>Simulador de Semáforo</title>
+
+  <!-- Google Fonts — Roboto Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ====================================================
+       RESET & VARIÁVEIS GLOBAIS
+    ==================================================== */
+    *, *::before, *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      /* Paleta escura */
+      --bg-page:       #0a0a0a;
+      --bg-card:       #111111;
+      --bg-housing:    #1a1a1a;
+      --bg-housing-border: #2a2a2a;
+      --text-primary:  #e8e8e8;
+      --text-secondary:#888888;
+      --text-muted:    #555555;
+
+      /* Cores do semáforo */
+      --red:           #ff1a1a;
+      --red-glow:      rgba(255, 26, 26, 0.65);
+      --yellow:        #ffcc00;
+      --yellow-glow:   rgba(255, 204, 0, 0.65);
+      --green:         #00e64d;
+      --green-glow:    rgba(0, 230, 77, 0.65);
+
+      /* Lâmpada inativa */
+      --lamp-off:      #1f1f1f;
+      --lamp-off-border:#2c2c2c;
+
+      /* Botão */
+      --btn-bg:        #1c1c1c;
+      --btn-border:    #333333;
+      --btn-hover:     #00e64d;
+      --btn-hover-text:#0a0a0a;
+
+      /* Tipografia */
+      --font:          'Roboto Mono', monospace;
+    }
+
+    html, body {
+      height: 100%;
+    }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg-page);
+      color: var(--text-primary);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* ====================================================
+       FUNDO ANIMADO — grade sutil
+    ==================================================== */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        radial-gradient(circle at 50% 50%, rgba(255,255,255,0.015) 1px, transparent 1px);
+      background-size: 32px 32px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ====================================================
+       CONTAINER PRINCIPAL
+    ==================================================== */
+    .container {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 36px;
+    }
+
+    /* ====================================================
+       TÍTULO
+    ==================================================== */
+    .titulo {
+      font-size: 1.15rem;
+      font-weight: 600;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      text-align: center;
+    }
+
+    /* ====================================================
+       CARCAÇA DO SEMÁFORO
+    ==================================================== */
+    .semaforo {
+      background: var(--bg-housing);
+      border: 2px solid var(--bg-housing-border);
+      border-radius: 28px;
+      padding: 32px 30px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 22px;
+      box-shadow:
+        0 0 0 1px rgba(255,255,255,0.03),
+        0 24px 64px rgba(0,0,0,0.6);
+      position: relative;
+    }
+
+    /* Detalhe decorativo — parafusos */
+    .semaforo::before,
+    .semaforo::after {
+      content: '';
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #252525;
+      border: 1px solid #333;
+    }
+    .semaforo::before { top: 12px; left: 50%; transform: translateX(-50%); }
+    .semaforo::after  { bottom: 12px; left: 50%; transform: translateX(-50%); }
+
+    /* Poste decorativo abaixo do semáforo */
+    .poste {
+      width: 18px;
+      height: 60px;
+      background: linear-gradient(to bottom, var(--bg-housing-border), #151515);
+      border-radius: 0 0 6px 6px;
+      margin-top: -4px;
+    }
+
+    /* ====================================================
+       LÂMPADAS
+    ==================================================== */
+    .lampada {
+      width: 90px;
+      height: 90px;
+      border-radius: 50%;
+      background: var(--lamp-off);
+      border: 2px solid var(--lamp-off-border);
+      transition: all 0.5s ease;
+      position: relative;
+    }
+
+    /* Reflexo interno da lâmpada */
+    .lampada::after {
+      content: '';
+      position: absolute;
+      top: 14%;
+      left: 20%;
+      width: 30%;
+      height: 25%;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.0);
+      transition: background 0.5s ease;
+    }
+
+    /* ----- ESTADOS ATIVOS ----- */
+
+    /* Vermelho ativo */
+    .lampada.vermelho-ativo {
+      background: radial-gradient(circle at 40% 35%, #ff6666, var(--red) 60%, #aa0000);
+      border-color: var(--red);
+      box-shadow:
+        0 0 16px var(--red-glow),
+        0 0 48px var(--red-glow),
+        0 0 96px rgba(255, 26, 26, 0.25);
+      animation: pulsar-vermelho 1.8s ease-in-out infinite;
+    }
+    .lampada.vermelho-ativo::after {
+      background: rgba(255,255,255,0.18);
+    }
+
+    /* Amarelo ativo */
+    .lampada.amarelo-ativo {
+      background: radial-gradient(circle at 40% 35%, #ffe066, var(--yellow) 60%, #b38f00);
+      border-color: var(--yellow);
+      box-shadow:
+        0 0 16px var(--yellow-glow),
+        0 0 48px var(--yellow-glow),
+        0 0 96px rgba(255, 204, 0, 0.25);
+      animation: pulsar-amarelo 1.2s ease-in-out infinite;
+    }
+    .lampada.amarelo-ativo::after {
+      background: rgba(255,255,255,0.2);
+    }
+
+    /* Verde ativo */
+    .lampada.verde-ativo {
+      background: radial-gradient(circle at 40% 35%, #66ff99, var(--green) 60%, #009933);
+      border-color: var(--green);
+      box-shadow:
+        0 0 16px var(--green-glow),
+        0 0 48px var(--green-glow),
+        0 0 96px rgba(0, 230, 77, 0.25);
+      animation: pulsar-verde 1.8s ease-in-out infinite;
+    }
+    .lampada.verde-ativo::after {
+      background: rgba(255,255,255,0.18);
+    }
+
+    /* ====================================================
+       ANIMAÇÕES DE GLOW (PULSAR)
+    ==================================================== */
+    @keyframes pulsar-vermelho {
+      0%, 100% { box-shadow: 0 0 16px var(--red-glow), 0 0 48px var(--red-glow), 0 0 96px rgba(255,26,26,0.25); }
+      50%      { box-shadow: 0 0 24px var(--red-glow), 0 0 64px var(--red-glow), 0 0 120px rgba(255,26,26,0.35); }
+    }
+
+    @keyframes pulsar-amarelo {
+      0%, 100% { box-shadow: 0 0 16px var(--yellow-glow), 0 0 48px var(--yellow-glow), 0 0 96px rgba(255,204,0,0.25); }
+      50%      { box-shadow: 0 0 24px var(--yellow-glow), 0 0 64px var(--yellow-glow), 0 0 120px rgba(255,204,0,0.35); }
+    }
+
+    @keyframes pulsar-verde {
+      0%, 100% { box-shadow: 0 0 16px var(--green-glow), 0 0 48px var(--green-glow), 0 0 96px rgba(0,230,77,0.25); }
+      50%      { box-shadow: 0 0 24px var(--green-glow), 0 0 64px var(--green-glow), 0 0 120px rgba(0,230,77,0.35); }
+    }
+
+    /* ====================================================
+       PAINEL DE INFORMAÇÕES
+    ==================================================== */
+    .painel {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .estado-nome {
+      font-size: 1.3rem;
+      font-weight: 700;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      transition: color 0.4s ease;
+    }
+
+    .estado-nome.vermelho { color: var(--red); }
+    .estado-nome.amarelo  { color: var(--yellow); }
+    .estado-nome.verde    { color: var(--green); }
+
+    /* Contador regressivo */
+    .contador-container {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .contador {
+      font-size: 2.8rem;
+      font-weight: 700;
+      letter-spacing: 2px;
+      line-height: 1;
+      transition: color 0.4s ease;
+    }
+    .contador.vermelho { color: var(--red); }
+    .contador.amarelo  { color: var(--yellow); }
+    .contador.verde    { color: var(--green); }
+
+    .contador-label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+
+    /* Barra de progresso do tempo */
+    .barra-progresso-wrapper {
+      width: 160px;
+      height: 4px;
+      background: #1f1f1f;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .barra-progresso {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.5s linear, background 0.4s ease;
+    }
+    .barra-progresso.vermelho { background: var(--red); }
+    .barra-progresso.amarelo  { background: var(--yellow); }
+    .barra-progresso.verde    { background: var(--green); }
+
+    /* ====================================================
+       BOTÃO DE REINICIAR
+    ==================================================== */
+    .btn-reset {
+      font-family: var(--font);
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      background: var(--btn-bg);
+      border: 1px solid var(--btn-border);
+      border-radius: 8px;
+      padding: 12px 28px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn-reset::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: var(--btn-hover);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      z-index: 0;
+    }
+
+    .btn-reset span {
+      position: relative;
+      z-index: 1;
+    }
+
+    .btn-reset:hover {
+      border-color: var(--btn-hover);
+      color: var(--btn-hover-text);
+      box-shadow: 0 0 20px rgba(0, 230, 77, 0.15);
+    }
+
+    .btn-reset:hover::before {
+      opacity: 1;
+    }
+
+    .btn-reset:active {
+      transform: scale(0.97);
+    }
+
+    /* ====================================================
+       RODAPÉ
+    ==================================================== */
+    .rodape {
+      position: fixed;
+      bottom: 20px;
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      letter-spacing: 1px;
+    }
+
+    /* ====================================================
+       RESPONSIVIDADE
+    ==================================================== */
+    @media (max-width: 480px) {
+      .lampada {
+        width: 70px;
+        height: 70px;
+      }
+
+      .semaforo {
+        padding: 24px 22px;
+        gap: 18px;
+        border-radius: 22px;
+      }
+
+      .contador {
+        font-size: 2.2rem;
+      }
+
+      .estado-nome {
+        font-size: 1.1rem;
+      }
+
+      .titulo {
+        font-size: 0.95rem;
+        letter-spacing: 3px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="container">
+    <!-- Título da página -->
+    <h1 class="titulo">Simulador de Semáforo</h1>
+
+    <!-- Carcaça do semáforo com 3 lâmpadas -->
+    <div class="semaforo" id="semaforo">
+      <div class="lampada" id="lampada-vermelho"></div>
+      <div class="lampada" id="lampada-amarelo"></div>
+      <div class="lampada" id="lampada-verde"></div>
+    </div>
+
+    <!-- Poste decorativo -->
+    <div class="poste"></div>
+
+    <!-- Painel de informações -->
+    <div class="painel">
+      <div class="estado-nome" id="estado-nome">—</div>
+      <div class="contador-container">
+        <div class="contador" id="contador">-</div>
+        <div class="contador-label">seg</div>
+      </div>
+      <div class="barra-progresso-wrapper">
+        <div class="barra-progresso" id="barra-progresso"></div>
+      </div>
+    </div>
+
+    <!-- Botão de reiniciar -->
+    <button class="btn-reset" id="btn-reset" onclick="reiniciarCiclo()">
+      <span>↻ Reiniciar Ciclo</span>
+    </button>
+  </div>
+
+  <!-- Rodapé -->
+  <div class="rodape">SEMÁFORO SIMULATOR • FLASK + HTML/CSS</div>
+
+  <script>
+    // ===========================================================
+    // JAVASCRIPT — Polling do backend a cada 500ms
+    // ===========================================================
+
+    // Referências aos elementos do DOM
+    const lampadaVermelho = document.getElementById('lampada-vermelho');
+    const lampadaAmarelo  = document.getElementById('lampada-amarelo');
+    const lampadaVerde    = document.getElementById('lampada-verde');
+    const estadoNome      = document.getElementById('estado-nome');
+    const contador        = document.getElementById('contador');
+    const barraProgresso  = document.getElementById('barra-progresso');
+
+    /**
+     * Consulta o endpoint /status e atualiza a interface.
+     * Chamada a cada 500ms via setInterval.
+     */
+    async function atualizarEstado() {
+      try {
+        const resposta = await fetch('/status');
+        const dados    = await resposta.json();
+
+        // Limpa classes ativas de todas as lâmpadas
+        lampadaVermelho.className = 'lampada';
+        lampadaAmarelo.className  = 'lampada';
+        lampadaVerde.className    = 'lampada';
+
+        // Ativa a lâmpada correspondente ao estado atual
+        if (dados.cor === 'vermelho') {
+          lampadaVermelho.classList.add('vermelho-ativo');
+        } else if (dados.cor === 'amarelo') {
+          lampadaAmarelo.classList.add('amarelo-ativo');
+        } else if (dados.cor === 'verde') {
+          lampadaVerde.classList.add('verde-ativo');
+        }
+
+        // Atualiza o nome do estado com a classe de cor
+        estadoNome.textContent = dados.nome;
+        estadoNome.className   = 'estado-nome ' + dados.cor;
+
+        // Atualiza o contador regressivo
+        contador.textContent = dados.tempo_restante;
+        contador.className   = 'contador ' + dados.cor;
+
+        // Atualiza a barra de progresso
+        const percentual = (dados.tempo_restante / dados.duracao_total) * 100;
+        barraProgresso.style.width = percentual + '%';
+        barraProgresso.className   = 'barra-progresso ' + dados.cor;
+
+      } catch (erro) {
+        // Em caso de erro de conexão, exibe indicador visual
+        estadoNome.textContent = 'Sem conexão';
+        estadoNome.className   = 'estado-nome';
+        contador.textContent   = '—';
+        contador.className     = 'contador';
+      }
+    }
+
+    /**
+     * Envia um POST para /reset para reiniciar o ciclo.
+     */
+    async function reiniciarCiclo() {
+      try {
+        await fetch('/reset', { method: 'POST' });
+        // Atualiza imediatamente após o reset
+        await atualizarEstado();
+      } catch (erro) {
+        console.error('Erro ao reiniciar ciclo:', erro);
+      }
+    }
+
+    // Inicia o polling a cada 500ms
+    setInterval(atualizarEstado, 500);
+
+    // Primeira consulta imediata ao carregar a página
+    atualizarEstado();
+  </script>
+
+</body>
+</html>
