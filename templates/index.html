@@ -24,7 +24,6 @@
     :root {
       /* Paleta escura */
       --bg-page:       #0a0a0a;
-      --bg-card:       #111111;
       --bg-housing:    #1a1a1a;
       --bg-housing-border: #2a2a2a;
       --text-primary:  #e8e8e8;
@@ -247,18 +246,6 @@
       gap: 10px;
     }
 
-    .estado-nome {
-      font-size: 1.3rem;
-      font-weight: 700;
-      letter-spacing: 3px;
-      text-transform: uppercase;
-      transition: color 0.4s ease;
-    }
-
-    .estado-nome.vermelho { color: var(--red); }
-    .estado-nome.amarelo  { color: var(--yellow); }
-    .estado-nome.verde    { color: var(--green); }
-
     /* Contador regressivo */
     .contador-container {
       display: flex;
@@ -352,17 +339,6 @@
     }
 
     /* ====================================================
-       RODAPÉ
-    ==================================================== */
-    .rodape {
-      position: fixed;
-      bottom: 20px;
-      font-size: 0.65rem;
-      color: var(--text-muted);
-      letter-spacing: 1px;
-    }
-
-    /* ====================================================
        RESPONSIVIDADE
     ==================================================== */
     @media (max-width: 480px) {
@@ -379,10 +355,6 @@
 
       .contador {
         font-size: 2.2rem;
-      }
-
-      .estado-nome {
-        font-size: 1.1rem;
       }
 
       .titulo {
@@ -411,7 +383,6 @@
 
     <!-- Painel de informações -->
     <div class="painel">
-      <div class="estado-nome" id="estado-nome">—</div>
       <div class="contador-container">
         <div class="contador" id="contador">-</div>
         <div class="contador-label">seg</div>
@@ -427,9 +398,6 @@
     </button>
   </div>
 
-  <!-- Rodapé -->
-  <div class="rodape">SEMÁFORO SIMULATOR • FLASK + HTML/CSS</div>
-
   <script>
     // ===========================================================
     // JAVASCRIPT — Polling do backend a cada 500ms
@@ -439,7 +407,6 @@
     const lampadaVermelho = document.getElementById('lampada-vermelho');
     const lampadaAmarelo  = document.getElementById('lampada-amarelo');
     const lampadaVerde    = document.getElementById('lampada-verde');
-    const estadoNome      = document.getElementById('estado-nome');
     const contador        = document.getElementById('contador');
     const barraProgresso  = document.getElementById('barra-progresso');
 
@@ -466,10 +433,6 @@
           lampadaVerde.classList.add('verde-ativo');
         }
 
-        // Atualiza o nome do estado com a classe de cor
-        estadoNome.textContent = dados.nome;
-        estadoNome.className   = 'estado-nome ' + dados.cor;
-
         // Atualiza o contador regressivo
         contador.textContent = dados.tempo_restante;
         contador.className   = 'contador ' + dados.cor;
@@ -480,9 +443,6 @@
         barraProgresso.className   = 'barra-progresso ' + dados.cor;
 
       } catch (erro) {
-        // Em caso de erro de conexão, exibe indicador visual
-        estadoNome.textContent = 'Sem conexão';
-        estadoNome.className   = 'estado-nome';
         contador.textContent   = '—';
         contador.className     = 'contador';
       }
